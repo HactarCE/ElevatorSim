@@ -27,6 +27,12 @@ class Person:
     def happy(self):
         return self.destination == self.location
 
+    def __repr__(self):
+        ...  # TODO
+
+    def __str__(self):
+        ...  # TODO
+
 
 class Platform(list):
     """A place for people to stand."""
@@ -56,6 +62,12 @@ class Platform(list):
             return False
         else:
             return self.append(person)
+
+    def __repr__(self):
+        ...  # TODO
+
+    def __str__(self):
+        ...  # TODO
 
 
 class Elevator:
@@ -110,3 +122,9 @@ class Elevator:
             if person.relative_destination == direction_indicated:
                 self.carriage.add(person)
                 floor.remove(person)
+
+    def __repr__(self):
+        ...  # TODO
+
+    def __str__(self):
+        ...  # TODO
