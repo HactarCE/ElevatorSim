@@ -4,6 +4,7 @@ from utils import sign
 
 
 ELEVATOR_CAPACITY = 3
+
 FLOORS = 8
 
 
@@ -76,24 +77,32 @@ class Elevator:
         self.carriage.location = location
 
     def move(self, amount: int):
+        """Move the elevator. (positive = up; negative = down)"""
         self.location += amount
 
     def go_up(self, amount: int = 1):
-        self.move(self, -amount)
-
-    def go_down(self, amount: int = 1):
+        """Move the elevator up."""
         self.move(self, amount)
 
+    def go_down(self, amount: int = 1):
+        """Move the elevator down."""
+        self.move(self, -amount)
+
     def open_doors(self, direction_indicated: int):
+        """Open the elevator doors, letting people off and on."""
         self.let_off(self)
         self.let_on(self, direction_indicated)
 
     def let_off(self):
+        """Let off the elevator anyone who wants to get off on this floor."""
         for person in self.carriage:
             if person.happy:
                 self.carriage.remove(person)
 
     def let_on(self, direction_indicated: int):
+        """Let on the elevator anyone who wants to travel in the advertised
+        direction.
+        """
         floor = self.floors[self.location]
         for person in floor:
             if self.carriage.full:
