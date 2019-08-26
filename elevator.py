@@ -13,6 +13,11 @@ colorama.init()
 DISPLAY_RELATIVE = True
 
 
+def toggle_display_relative():
+    global DISPLAY_RELATIVE
+    DISPLAY_RELATIVE = not DISPLAY_RELATIVE
+
+
 class Person:
     """A person that wants to go to some floor."""
 
@@ -134,15 +139,16 @@ class Elevator(Platform):
 
     def move(self, amount: int):
         """Move the elevator. (positive = up; negative = down)"""
-        self.location += amount
+        if 0 <= self.location + amount < len(self.floors):
+            self.location += amount
 
-    def go_up(self, amount: int = 1):
+    def move_up(self, amount: int = 1):
         """Move the elevator up."""
-        self.move(self, amount)
+        self.move(amount)
 
-    def go_down(self, amount: int = 1):
+    def move_down(self, amount: int = 1):
         """Move the elevator down."""
-        self.move(self, -amount)
+        self.move(-amount)
 
     def open_doors(self, direction_indicated: int):
         """Open the elevator doors, letting people off and on."""
@@ -151,21 +157,27 @@ class Elevator(Platform):
 
     def let_off(self):
         """Let off the elevator anyone who wants to get off on this floor."""
+        let_off = set()
         for person in self:
             if person.happy:
-                self.remove(person)
+                let_off.add(person)
+        for person in let_off:
+            self.remove(person)
 
     def let_on(self, direction_indicated: int):
         """Let on the elevator anyone who wants to travel in the advertised
         direction.
         """
         floor = self.floors[self.location]
+        let_on = set()
         for person in floor:
             if self.full:
                 return
-            if person.relative_destination == direction_indicated:
-                if self.add(person):
-                    floor.remove(person)
+            if person.direction == direction_indicated:
+                let_on.add(person)
+        for person in let_on:
+            if self.add(person):
+                floor.remove(person)
 
     def ml_rep(self, floors_visible: int):
         """Generate the data model used by the machine learning system.
@@ -179,34 +191,28 @@ class Elevator(Platform):
         -               Someone on this floor wants to go down
         - Highest bit:  Someone on the elevator wants to get off on this floor
         """
+        # Find the lowest and highest floors that will be represented alone (not
+        # clumped).
+        bottom = self.location - floors_visible // 2
+        top = self.location + floors_visible // 2
         # Get a set of places that people currently inside the elevator want to
         # go.
         destinations = set(person.destination for person in self)
         # Generate the three bits for each floor.
-        floorbits = np.ndarray(len(self.floors), dtype=np.byte)
+        floorbits = np.zeros(floors_visible, dtype=np.byte)
         for floor in self.floors:
-            floorbits[floor.location] = [
-                floor.want_up << 1 +
-                floor.want_down << 2 +
-                (floor.location in destinations) << 3
-            ]
-        # Find the lowest and highest floors that will be represented alone (not
-        # clumped).
-        bottom = self.location - floors_visible // 2 + 1
-        top = self.location + floors_visible // 2 - 1
-        # Clump the floors that need to be clumped.
-        if bottom <= 0:
-            # Don't use negative numbers outright, because that would take from
-            # the end of the list.
-            pre = []
-        else:
-            pre = self.floorbits[:bottom]
-        post = self.floorbits[top + 1:]
-        return np.concatenate(
-            [np.bitwise_or.reduce(pre)],
-            floor[bottom:top],
-            [np.bitwise_or.reduce(post)],
-        )
+            index = np.clip(floor.location, bottom, top) - bottom
+            print(floor.location, index)
+            floorbits[index] |= (
+                (floor.want_up << 0) +
+                (floor.want_down << 1) +
+                ((floor.location in destinations) << 2)
+            )
+        return floorbits
+
+    @property
+    def done(self):
+        return not self and not any(self.floors)
 
     def str_with_arrow(self, advertised_direction: int):
         s = ''
@@ -229,6 +235,7 @@ class Elevator(Platform):
             if floor.location == self.location:
                 s += super().__str__()[:-1]
             s += '\n'
+        s += str(self.ml_rep(5))
         return s
 
     def __str__(self):
